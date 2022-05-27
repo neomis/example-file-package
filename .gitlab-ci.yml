@@ -1,0 +1,61 @@
+variables:
+  GIT_CLEAN_FLAGS: -ffdx -e venv
+image: python
+stages:
+  - build
+  - test
+  - deploy
+  - production
+
+build:
+  stage: build
+  tags:
+    - docker,python
+  script:
+    - python -c "import sys; print(sys.version)"
+    - if [[ ! -d venv ]]; then python -m venv venv; fi
+    - source venv/bin/activate
+    - pip install -U pip setuptools wheel
+    - pip install .[dev]
+  when: always
+
+test:
+  stage: test
+  tags:
+    - docker,python
+  script:
+    - source venv/bin/activate
+    - mypy -p python_template
+    - pylint python_template
+    - pytest
+  except:
+    - tags
+
+deploy_to_pypy:
+  stage: deploy
+  tags:
+    - docker,python
+  script:
+    - source venv/bin/activate
+    - pip install twine
+    - python setup.py check sdist bdist_wheel
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+  artifacts:
+    paths:
+      - dist/
+  rules:
+    - if: '$CI_COMMIT_REF_NAME =~ /^v*\d+\.\d+\.\d+([abc]\d*)?$/' # PEP-440 compliant version (tags)
+      when: on_success
+# release_to_production:
+#   stage: production
+#   tags:
+#     - server
+#   script:
+#     - source /opt/python_template/bin/activate
+#     - pip install -U pip setuptools wheel
+#     - pip install python_template==$CI_COMMIT_REF_NAME
+#     - deactivate
+#     - sudo systemctl restart python_template.service
+#   rules:
+#     - if: '$CI_COMMIT_REF_NAME =~ /^v*\d+\.\d+\.\d+([abc]\d*)?$/' # PEP-440 compliant version (tags)
+#       when: on_success
