@@ -5,5 +5,5 @@ import pytest
 @pytest.mark.test_package
 def test_import():
     """Test imporint package works."""
-    from python_template.main import main  # pylint: disable=import-outside-toplevel, unused-import
+    from exf import EXF  # pylint: disable=import-outside-toplevel, unused-import
     assert True

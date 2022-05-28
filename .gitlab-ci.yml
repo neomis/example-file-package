@@ -25,8 +25,8 @@ test:
     - docker,python
   script:
     - source venv/bin/activate
-    - mypy -p python_template
-    - pylint python_template
+    - mypy -p exf
+    - pylint exf
     - pytest
   except:
     - tags
@@ -51,11 +51,11 @@ deploy_to_pypy:
 #   tags:
 #     - server
 #   script:
-#     - source /opt/python_template/bin/activate
+#     - source /opt/exf/bin/activate
 #     - pip install -U pip setuptools wheel
-#     - pip install python_template==$CI_COMMIT_REF_NAME
+#     - pip install exf==$CI_COMMIT_REF_NAME
 #     - deactivate
-#     - sudo systemctl restart python_template.service
+#     - sudo systemctl restart exf.service
 #   rules:
 #     - if: '$CI_COMMIT_REF_NAME =~ /^v*\d+\.\d+\.\d+([abc]\d*)?$/' # PEP-440 compliant version (tags)
 #       when: on_success

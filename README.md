@@ -1,16 +1,16 @@
-# python-template
+# exf
 
 Basic Python template for creating pip packages.
 
 ## Installation
 
 ```bash
-python3 -m venv /opt/python_template
-source /opt/python_template/bin/activate
+python3 -m venv /opt/exf
+source /opt/exf/bin/activate
 pip install --upgrade pip setuptools wheel
-pip install python_template
+pip install exf
 ```
 
 ## Usage
 
-`python_template [--loglevel=(DEBUG|INFO|ERROR)]`
+`exf [--loglevel=(DEBUG|INFO|ERROR)]`

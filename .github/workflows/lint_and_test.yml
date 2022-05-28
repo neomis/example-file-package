@@ -31,13 +31,13 @@ jobs:
           pip install .[dev]
       - name: Build Version
         run: |
-          python_template --version
+          exf --version
       - name: Lint with mypy
         run: |
-          mypy python_template
+          mypy exf
       - name: Lit with pylint
         run: |
-          pylint python_template
+          pylint exf
       - name: Test with pytest
         run: |
           pytest

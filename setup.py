@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 about = {}
-with open(os.path.join(HERE, 'python_template', '__version__.py'), 'r', encoding='utf-8') as file_handle:
+with open(os.path.join(HERE, 'exf', '__version__.py'), 'r', encoding='utf-8') as file_handle:
     exec(file_handle.read(), about)  # pylint: disable=exec-used
 
 with open('README.md', 'r', encoding='utf-8') as file_handle:
@@ -27,12 +27,15 @@ setup(
     zip_safe=False,
     entry_points='''
         [console_scripts]
-        python_template=python_template.cli:cli
+        exf_to_json=exf.cli:exf_to_json
+        json_to_exf=exf.cli:json_to_exf
     ''',
     install_requires=[
         'arrow',
         'click',
         'loguru',
+        'pandas',
+        'pydantic',
         'python-dotenv',
         'python-pidfile'
     ],
