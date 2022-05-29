@@ -31,7 +31,7 @@ jobs:
           pip install .[dev]
       - name: Build Version
         run: |
-          exf --version
+          exf_to_json --version
       - name: Lint with mypy
         run: |
           mypy exf
