@@ -5,8 +5,8 @@ Python package to create and manipulate Example files.
 ## Installation
 
 ```bash
-python3 -m venv /opt/exf
-source /opt/exf/bin/activate
+python -m venv exf
+source exf/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install exf
 ```
