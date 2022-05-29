@@ -1,0 +1,53 @@
+{
+    "file_version": {
+        "major": 1,
+        "minor": 0
+    },
+    "file_date": "2022-05-29T07:08:02.624158-07:00",
+    "start_date": "2022-05-22T05:18:00-07:00",
+    "lot_id": "LOT0001",
+    "wafer_id": "WAFERSCRIBE01",
+    "technology_id": "TECH01",
+    "device_id": "DEVICE01",
+    "operation_id": "T2300.01",
+    "equipment_id": "PROBER01",
+    "test_program": {
+        "name": "MEASURE_THE_WAFER",
+        "revision": "1.0"
+    },
+    "input_config": [
+        {
+            "TEMP": 80,
+            "VDD": 2.4,
+            "FSTART": 1000,
+            "FEND": 10000
+        }
+    ],
+    "data": [
+        {
+            "INDEX": 1,
+            "PARAM": "PARAM1",
+            "VALUE": 1.0,
+            "PASS": true
+        },
+        {
+            "INDEX": 2,
+            "PARAM": "PARAM1",
+            "VALUE": 1.5,
+            "PASS": true
+        },
+        {
+            "INDEX": 3,
+            "PARAM": "PARAM2",
+            "VALUE": 1.6,
+            "PASS": true
+        },
+        {
+            "INDEX": 4,
+            "PARAM": "PARAM2",
+            "VALUE": 5.0,
+            "PASS": false
+        }
+    ],
+    "end_date": "2022-05-22T05:20:00-07:00"
+}

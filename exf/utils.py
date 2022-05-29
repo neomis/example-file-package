@@ -3,7 +3,7 @@ import os
 from io import StringIO
 import json
 from datetime import date, datetime
-from typing import Dict, Union, Any, List, Optional
+from typing import Dict, Union, Any, Optional
 from loguru import logger
 from arrow.arrow import Arrow
 import pandas as pd
@@ -72,12 +72,6 @@ def read_json(file_path: Union[str, StringIO]) -> Dict[str, Any]:
     return data
 
 
-def read_dir(dir_path: str) -> List[str]:
-    """Validate directory exists and return it's contents."""
-    validate_path(dir_path, permission='r')
-    return os.listdir(dir_path)
-
-
 def sanitize_json(record):
     """Sanitize JSON object."""
     if record is None:
@@ -100,6 +94,7 @@ def sanitize_json(record):
 def write_json(data: Dict[str, Any], file_path: Optional[str], permission=0o664) -> Optional[str]:
     """Write data to JSON file."""
     logger.info("WRITE_JSON: STARTED")
+    logger.debug(f"FILE_PATH: {file_path}")
     if data is None:
         raise ValueError("No data to save.")
     if file_path is None:

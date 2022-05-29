@@ -1,11 +1,14 @@
 """Main program."""
 from io import StringIO
 from typing import Dict, Any, List, Optional, Union
+from datetime import datetime
+from dateutil import parser
 import arrow
 import pandas as pd
 from loguru import logger
-from .utils import write_json, read_json
-__ALL__ = ['EXF', 'read_exf']
+from .config import ENCODING
+from . import utils
+__ALL__ = ['EXF', 'read_exf', 'read_json']
 
 
 class FileVersion():
@@ -24,7 +27,7 @@ class FileVersion():
         return self.__major
 
     @major.setter
-    def major(self, value: int) -> None:
+    def major(self, value) -> None:
         """Set Major Version."""
         if not isinstance(value, int):
             try:
@@ -53,8 +56,17 @@ class FileVersion():
         self.__minor = value
 
     @classmethod
-    def parse(cls, file_version: str):
+    def parse(cls, file_version: Union[str, Dict[str, int]]):
         """Parse string into class."""
+        logger.info('Parse File Version')
+        logger.debug(f"INPUT: {file_version}")
+
+        major: Optional[Union[str, int]] = None
+        minor: Optional[Union[str, int]] = None
+        if isinstance(file_version, dict):
+            major = file_version.get('major')
+            minor = file_version.get('minor')
+            return cls(major, minor)
         if not isinstance(file_version, str):
             raise TypeError("Input must be string.")
         if file_version[0].lower() == 'v':
@@ -84,12 +96,12 @@ class TestProgram():
         self.name = test_program
         self.revision = test_revision
 
-    @property
+    @ property
     def name(self) -> str:
         """Name Getter."""
         return self.__name
 
-    @name.setter
+    @ name.setter
     def name(self, value: str) -> None:
         """Name Setter."""
         if value is None:
@@ -99,15 +111,15 @@ class TestProgram():
                 value = str(value)
             except (ValueError, TypeError) as error:
                 logger.debug(error)
-                raise TypeError(f"Input must be string.") from error
+                raise TypeError("Input must be string.") from error
         self.__name = value.strip()
 
-    @property
+    @ property
     def revision(self) -> str:
         """Revision Getter."""
         return self.__revision
 
-    @revision.setter
+    @ revision.setter
     def revision(self, value: str) -> None:
         """Revision Setter."""
         if value is None:
@@ -117,12 +129,21 @@ class TestProgram():
                 value = str(value)
             except (ValueError, TypeError) as error:
                 logger.debug(error)
-                raise TypeError(f"Input must be string.") from error
+                raise TypeError("Input must be string.") from error
         self.__revision = value.strip()
 
-    @classmethod
-    def parse(cls, value: str):
+    @ classmethod
+    def parse(cls, value: Union[str, Dict[str, str]]):
         """Parse string."""
+        logger.info("Parse Test Program")
+        logger.debug(f"INPUT: {value}")
+
+        name: str = ""
+        revision: str = ""
+        if isinstance(value, dict):
+            name = value.get('name', "")
+            revision = value.get('revision', "")
+            return cls(name, revision)
         if not isinstance(value, str):
             raise TypeError("Input must be string.")
         name, revision = value.split(' ', 1)
@@ -149,9 +170,10 @@ class Table():
         """Initialize Class."""
         self.__columns = {}
         self.__table = pd.DataFrame(columns=column_names)
-        while len(column_names):
+        while len(column_names) > 0:
             column = column_names.pop(0)
-            column_type = column_types.pop(0) if len(column_types) else float
+            column_type = column_types.pop(0) if len(
+                column_types) > 0 else float
             self.__columns[column] = column_type
             self.__table[column] = self.__table[column].astype(column_type)
 
@@ -170,7 +192,7 @@ class Table():
         """Add row data."""
         self.__table.loc[len(self.__table.index)] = data
 
-    @classmethod
+    @ classmethod
     def parse(cls, data: Union[str, pd.DataFrame]):
         """Parse String."""
         if data is None:
@@ -179,6 +201,12 @@ class Table():
             table: pd.DataFrame = pd.read_csv(StringIO(data), sep='\t')
         elif isinstance(data, pd.DataFrame):
             table = data.reset_index(drop=True)
+        elif isinstance(data, (dict, list)):
+            try:
+                table = pd.DataFrame(data)
+            except Exception as error:
+                logger.debug(error)
+                raise ValueError("Failed to generate Table.") from error
         else:
             raise TypeError(f"Invalid data type for table: {type(data)}")
         column_names: List[str] = []
@@ -215,7 +243,7 @@ class EXF():
 
     def __init__(self, file_version="1.0", **kwargs):
         """Initialize class."""
-        if isinstance(file_version, str):
+        if isinstance(file_version, (dict, str)):
             file_version = FileVersion.parse(file_version)
         self.file_version = file_version
         self.file_date = arrow.now()
@@ -225,7 +253,19 @@ class EXF():
             if key == 'test_program' and not isinstance(value, TestProgram):
                 value = TestProgram.parse(value)
             elif key.endswith('_date') and not isinstance(value, arrow.Arrow):
-                value = arrow.get(value)
+                if isinstance(value, str):
+                    try:
+                        value = parser.parse(value)
+                    except parser.ParserError as error:
+                        logger.debug(error)
+                        raise ValueError(
+                            f"Failed to parse date: {key} -> {value}") from error
+                if isinstance(value, datetime) and value.tzinfo is None:
+                    value = arrow.get(value, tzinfo='local')
+                else:
+                    value = arrow.get(value)
+            elif isinstance(value, (dict, list, pd.DataFrame)):
+                value = Table.parse(value)
             setattr(self, key, value)
 
     def add_parameter(self, key: str, value: Any):
@@ -258,6 +298,7 @@ class EXF():
         if 'file_version' not in data:
             raise ValueError("File Version not found.")
         file_version = data.pop('file_version')
+
         return cls(file_version, **data)
 
     @classmethod
@@ -326,22 +367,26 @@ class EXF():
         out: str = self.to_string()
         if file_path is None:
             return out
-        with open(file_path, 'w') as file_handle:
+        with open(file_path, 'w', encoding=ENCODING) as file_handle:
             file_handle.write(out)
             file_handle.close()
         return None
 
     def to_json(self, file_path: Optional[str] = None) -> Optional[str]:
         """Save EXF to json file."""
-        write_json(self.to_dict(), file_path)
+        return utils.write_json(self.to_dict(), file_path)
 
 
 def read_exf(file_path: Union[str, StringIO], **kwargs) -> EXF:
     """Read exf file into class."""
+    logger.info("Read EXF file.")
+    logger.debug(f"FILE_PATH: {file_path}")
+    for key, value in kwargs.items():
+        logger.debug(f"{key}: {value}")
     if file_path is None:
         raise ValueError("File Path cannot be None.")
     if isinstance(file_path, str):
-        with open(file_path, 'r') as file_handle:
+        with open(file_path, 'r', encoding=ENCODING) as file_handle:
             data = file_handle.read()
             file_handle.close()
     elif isinstance(file_path, StringIO):
@@ -353,6 +398,9 @@ def read_exf(file_path: Union[str, StringIO], **kwargs) -> EXF:
 
 def read_json(file_path: Union[str, StringIO], **kwargs) -> EXF:
     """Read json file into class."""
-
-    data = read_json(file_path)
+    logger.info("Read JSON file.")
+    logger.debug(f"FILE_PATH: {file_path}")
+    for key, value in kwargs.items():
+        logger.debug(f"{key}: {value}")
+    data = utils.read_json(file_path)
     return EXF.from_dict(data)

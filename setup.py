@@ -36,6 +36,7 @@ setup(
         'loguru',
         'pandas',
         'pydantic',
+        'python-dateutil',
         'python-dotenv',
         'python-pidfile'
     ],
@@ -46,6 +47,7 @@ setup(
             'pylint',
             'pytest',
             'pytest-cov',
-            'twine']
+            'twine',
+            'types-python-dateutil']
     }
 )

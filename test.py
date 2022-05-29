@@ -1,3 +1,3 @@
 import exf
-df = exf.read_exf('tests/test1.exf')
-print(df.to_exf())
+df = exf.read_json('tests/test1.json')
+df.to_exf('tests/test2.exf')

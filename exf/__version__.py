@@ -2,7 +2,7 @@
 __title__ = 'exf'
 __description__ = 'Example File Template.'
 __url__ = 'https://gitlab.neomis.games/home/exf.git'
-__version__ = '0.1.0'
+__version__ = '1.0.0'
 __author__ = 'neomis'
 __author_email__ = 'neomis@gmail.com'
 __license__ = 'MIT'

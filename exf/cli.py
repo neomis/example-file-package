@@ -21,7 +21,9 @@ def exf_to_json(file_path, out_path, log_level) -> None:
     logger.info(f"ENVIRONMENT: {ENVIRONMENT}")
     logger.info(f"LOG LEVEL: {log_level}")
     record = exf.read_exf(file_path)
-    record.to_json(out_path)
+    out = record.to_json(out_path)
+    if out is not None:
+        click.echo(out)
 
 
 @click.command()
@@ -36,4 +38,6 @@ def json_to_exf(file_path, out_path, log_level) -> None:
     logger.info(f"ENVIRONMENT: {ENVIRONMENT}")
     logger.info(f"LOG LEVEL: {log_level}")
     record = exf.read_json(file_path)
-    record.to_exf(out_path)
+    out = record.to_exf(out_path)
+    if out is not None:
+        click.echo(out)
