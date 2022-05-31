@@ -107,11 +107,7 @@ class TestProgram():
         if value is None:
             raise ValueError("TestProgram Name cannot be None.")
         if not isinstance(value, str):
-            try:
-                value = str(value)
-            except (ValueError, TypeError) as error:
-                logger.debug(error)
-                raise TypeError("Input must be string.") from error
+            raise TypeError(f"TestProgram->Name must be string: {value}")
         self.__name = value.strip()
 
     @ property
@@ -125,11 +121,7 @@ class TestProgram():
         if value is None:
             raise ValueError("TestProgram Revision cannot be None.")
         if not isinstance(value, str):
-            try:
-                value = str(value)
-            except (ValueError, TypeError) as error:
-                logger.debug(error)
-                raise TypeError("Input must be string.") from error
+            raise TypeError(f"TestProgram->Revision must be string: {value}")
         self.__revision = value.strip()
 
     @ classmethod
@@ -170,12 +162,15 @@ class Table():
         """Initialize Class."""
         self.__columns = {}
         self.__table = pd.DataFrame(columns=column_names)
+        if not isinstance(column_names, list):
+            raise TypeError("column_names must be list of strings.")
+        if not isinstance(column_types, list):
+            raise TypeError("column_types must be list.")
         while len(column_names) > 0:
             column = column_names.pop(0)
             column_type = column_types.pop(0) if len(
                 column_types) > 0 else float
-            self.__columns[column] = column_type
-            self.__table[column] = self.__table[column].astype(column_type)
+            self.add_column(column, column_type)
 
     def add_column(self, column_name: str, column_type=float) -> None:
         """Add Column."""
@@ -184,7 +179,7 @@ class Table():
         if column_name in self.__columns:
             raise ValueError(f"Column Name already exists: {column_name}")
         self.__columns[column_name] = column_type
-        self.__table[column_name] = None if column_type == str else pd.nan
+        self.__table[column_name] = pd.NA
         self.__table[column_name] = self.__table[column_name].astype(
             column_type)
 
@@ -192,11 +187,11 @@ class Table():
         """Add row data."""
         self.__table.loc[len(self.__table.index)] = data
 
-    @ classmethod
+    @classmethod
     def parse(cls, data: Union[str, pd.DataFrame]):
         """Parse String."""
         if data is None:
-            return ValueError("Table data cannot be None.")
+            raise ValueError("Table data cannot be None.")
         if isinstance(data, str):
             table: pd.DataFrame = pd.read_csv(StringIO(data), sep='\t')
         elif isinstance(data, pd.DataFrame):
@@ -204,18 +199,17 @@ class Table():
         elif isinstance(data, (dict, list)):
             try:
                 table = pd.DataFrame(data)
+                logger.debug(table)
             except Exception as error:
                 logger.debug(error)
-                raise ValueError("Failed to generate Table.") from error
+                raise ValueError("Failed to parse Table data.") from error
         else:
             raise TypeError(f"Invalid data type for table: {type(data)}")
         column_names: List[str] = []
         column_types: List[type] = []
         for column in table.columns:
             column_names.append(column)
-            if table[column].dtypes.name == 'object':
-                column_types.append(str)
-            elif table[column].dtypes.name == 'boolean':
+            if table[column].dtypes.name == 'bool':
                 column_types.append(bool)
             elif table[column].dtypes.name.startswith('int'):
                 column_types.append(int)
@@ -224,7 +218,8 @@ class Table():
             else:
                 column_types.append(table[column].dtypes.type)
         record = cls(column_names, column_types)
-        record.__table = table
+        for row in table.values:
+            record.add_row(row)
         return record
 
     def to_dict(self) -> List[Dict[str, Any]]:
@@ -243,30 +238,17 @@ class EXF():
 
     def __init__(self, file_version="1.0", **kwargs):
         """Initialize class."""
-        if isinstance(file_version, (dict, str)):
+        if not isinstance(file_version, FileVersion):
             file_version = FileVersion.parse(file_version)
         self.file_version = file_version
         self.file_date = arrow.now()
         for key, value in kwargs.items():
             key = key.lower()
             logger.debug(f"{key}: {value}")
-            if key == 'test_program' and not isinstance(value, TestProgram):
-                value = TestProgram.parse(value)
-            elif key.endswith('_date') and not isinstance(value, arrow.Arrow):
-                if isinstance(value, str):
-                    try:
-                        value = parser.parse(value)
-                    except parser.ParserError as error:
-                        logger.debug(error)
-                        raise ValueError(
-                            f"Failed to parse date: {key} -> {value}") from error
-                if isinstance(value, datetime) and value.tzinfo is None:
-                    value = arrow.get(value, tzinfo='local')
-                else:
-                    value = arrow.get(value)
-            elif isinstance(value, (dict, list, pd.DataFrame)):
-                value = Table.parse(value)
-            setattr(self, key, value)
+            if isinstance(value, (dict, list, pd.DataFrame)) and key not in ['test_program']:
+                self.add_table(key, value)
+            else:
+                self.add_parameter(key, value)
 
     def add_parameter(self, key: str, value: Any):
         """Add parameter to file."""
@@ -277,6 +259,26 @@ class EXF():
         if isinstance(value, pd.DataFrame):
             raise ValueError(
                 "Tables must be added using the add_table method.")
+        if key == 'test_program' and not isinstance(value, TestProgram):
+            value = TestProgram.parse(value)
+        elif key.endswith('_date') and not isinstance(value, arrow.Arrow):
+            if isinstance(value, str):
+                try:
+                    value = parser.parse(value)
+                except parser.ParserError as error:
+                    logger.debug(error)
+                    raise ValueError(
+                        f"Failed to parse date: {key} -> {value}") from error
+            if isinstance(value, datetime) and value.tzinfo is None:
+                value = arrow.get(value, tzinfo='local')
+            else:
+                try:
+                    value = arrow.get(value)
+                except Exception as error:
+                    logger.debug(error)
+                    raise ValueError(
+                        f"Failed to parse date: {key} -> {value}") from error
+
         setattr(self, key, value)
 
     def add_table(self, key: str, data: pd.DataFrame = pd.DataFrame) -> None:
@@ -341,8 +343,8 @@ class EXF():
         """Return Dictionary representation of Example file."""
         out = {}
         for key, value in self.__dict__.items():
-            if key.startswith('_'):
-                continue
+            # if key.startswith('_'):
+            #     continue
             if hasattr(value, 'to_dict'):
                 out[key] = value.to_dict()
                 continue
@@ -351,7 +353,7 @@ class EXF():
 
     def to_string(self) -> str:
         """Return String of EXF data."""
-        out = f"Example File {self.file_version}\n"
+        out = f"Example File v{self.file_version}\n"
         for key, value in self.__dict__.items():
             if key == 'file_version':
                 continue
@@ -364,25 +366,17 @@ class EXF():
 
     def to_exf(self, file_path: Optional[str] = None) -> Optional[str]:
         """Save EXF to file."""
-        out: str = self.to_string()
-        if file_path is None:
-            return out
-        with open(file_path, 'w', encoding=ENCODING) as file_handle:
-            file_handle.write(out)
-            file_handle.close()
-        return None
+        return utils.write_exf(self.to_string(), file_path)
 
     def to_json(self, file_path: Optional[str] = None) -> Optional[str]:
         """Save EXF to json file."""
         return utils.write_json(self.to_dict(), file_path)
 
 
-def read_exf(file_path: Union[str, StringIO], **kwargs) -> EXF:
+def read_exf(file_path: Union[str, StringIO]) -> EXF:
     """Read exf file into class."""
     logger.info("Read EXF file.")
     logger.debug(f"FILE_PATH: {file_path}")
-    for key, value in kwargs.items():
-        logger.debug(f"{key}: {value}")
     if file_path is None:
         raise ValueError("File Path cannot be None.")
     if isinstance(file_path, str):
@@ -396,11 +390,9 @@ def read_exf(file_path: Union[str, StringIO], **kwargs) -> EXF:
     return EXF.from_string(data)
 
 
-def read_json(file_path: Union[str, StringIO], **kwargs) -> EXF:
+def read_json(file_path: Union[str, StringIO]) -> EXF:
     """Read json file into class."""
     logger.info("Read JSON file.")
     logger.debug(f"FILE_PATH: {file_path}")
-    for key, value in kwargs.items():
-        logger.debug(f"{key}: {value}")
     data = utils.read_json(file_path)
     return EXF.from_dict(data)
