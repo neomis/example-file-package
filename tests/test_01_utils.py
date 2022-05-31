@@ -18,7 +18,7 @@ def test_validation():
     except ValueError as error:
         logger.debug(error)
     try:
-        validate_path('/fake!@#path"', 'r')
+        validate_path('/fake!@#path\0"', 'r')
         assert False
     except ValueError as error:
         logger.debug(error)
