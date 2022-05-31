@@ -19,7 +19,7 @@ def validate_path(dir_path: str, permission: str = 'r') -> bool:
             if base_path != full_path:
                 validate_path(base_path)
             os.mkdir(dir_path)
-        except Exception as error:
+        except (OSError, PermissionError) as error:
             logger.error(f"Failed to create path: {dir_path}")
             logger.debug(error)
             raise ValueError(f"Path not found: {dir_path}") from error
@@ -28,9 +28,11 @@ def validate_path(dir_path: str, permission: str = 'r') -> bool:
     if permission.lower() == 'r':
         if not os.access(dir_path, os.R_OK):
             raise ValueError(f"Path not readable: {dir_path}")
-    if permission.lower() == 'w':
+    elif permission.lower() == 'w':
         if not os.access(dir_path, os.W_OK):
             raise PermissionError(f"Path not writable: {dir_path}")
+    else:
+        raise ValueError(f"Invalid permission flag: {permission}")
     return True
 
 
@@ -91,7 +93,7 @@ def sanitize_json(record):
     return record
 
 
-def write_json(data: Dict[str, Any], file_path: Optional[str], permission=0o664) -> Optional[str]:
+def write_json(data: Dict[str, Any], file_path: Optional[str] = None, permission=0o664) -> Optional[str]:
     """Write data to JSON file."""
     logger.info("WRITE_JSON: STARTED")
     logger.debug(f"FILE_PATH: {file_path}")
@@ -117,6 +119,33 @@ def write_json(data: Dict[str, Any], file_path: Optional[str], permission=0o664)
         else:
             json.dump(data, file_handle, indent=4,
                       sort_keys=False, default=sanitize_json)
+        file_handle.close()
+    final_path = temp_path + file_ext
+    os.replace(temp_path, final_path)
+    os.chmod(final_path, permission)
+    logger.info(f"FILE SAVED: {final_path}")
+    return None
+
+
+def write_exf(data: str, file_path: Optional[str] = None, permission=0o644) -> Optional[str]:
+    """Write data to file."""
+    logger.info("WRITE_FILE: STARTED")
+    logger.debug(f"FILE_PATH: {file_path}")
+    if data is None:
+        raise ValueError(("No data to save."))
+    if file_path is None:
+        # Output string
+        return data
+    save_path, file_name = os.path.split(file_path)
+    logger.debug(f"SAVE_PATH: {save_path}")
+    logger.debug(f"file_name: {file_name}")
+    validate_path(save_path, permission='w')
+    file_name, file_ext = os.path.splitext(file_name)
+    temp_path = os.path.join(save_path, file_name)
+    if file_ext == '':
+        file_ext = '.exf'
+    with open(temp_path, 'w', encoding=ENCODING) as file_handle:
+        file_handle.write(data)
         file_handle.close()
     final_path = temp_path + file_ext
     os.replace(temp_path, final_path)
